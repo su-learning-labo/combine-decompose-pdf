@@ -1,6 +1,4 @@
 import streamlit as st
-import pypdf
-import tempfile
 
 from pypdf import PdfReader, PdfWriter, PdfMerger
 
@@ -52,6 +50,7 @@ def main():
 
             add_pdfs = st.file_uploader("結合するPDFファイルをアップロードしてください", type='pdf', accept_multiple_files=True)
 
+            # 追加ファイルのアップロードをトリガーに
             if add_pdfs:
                 merger = PdfMerger()
                 merger.append(pdf_file)
