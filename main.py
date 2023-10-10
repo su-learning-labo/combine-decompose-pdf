@@ -5,7 +5,6 @@ from pypdf import PdfReader, PdfWriter, PdfMerger
 
 # Streamlitアプリ
 def main():
-
     st.title('PDF Manipulator')
 
     pdf_file = st.file_uploader("PDFファイルをアップロードしてください", type="pdf")
@@ -16,16 +15,16 @@ def main():
         writer = PdfWriter(pdf_file)
         count_pages = len(reader.pages)
 
-        st.sidebar.subheader('ベースとなるPDFファイル:')
-        st.sidebar.write(f'- Title: {pdf_file.name}')
-        st.sidebar.write(f'- Pages: {count_pages}ページ')
-        st.sidebar.write(f'- Size: {round(pdf_file.size/(1024*1024), 1)}MB')
+        # st.sidebar.subheader('ベースとなるPDFファイル:')
+        # st.sidebar.write(f'- Title: {pdf_file.name}')
+        # st.sidebar.write(f'- Pages: {count_pages}ページ')
+        # st.sidebar.write(f'- Size: {round(pdf_file.size / (1024 * 1024), 1)}MB')
 
         st.write('---')
         selector = st.radio(
             '処理を選択してください',
-            options=['結合', 'ページ削除', '並び替え', '分割'],
-            captions=['アップロードした複数のPDFをつなげる', '指定したページを削除する', '指定した並び順にする', '指定した箇所でページを分ける'],
+            options=['結合', 'ページ削除', '並び替え'],
+            captions=['アップロードした複数のPDFをつなげる', '指定したページを削除する', '指定順にページをソートする'],
             index=None
         )
 
@@ -49,47 +48,94 @@ def main():
                 st.download_button(
                     label='ダウンロード',
                     data=PDFbyte,
-                    file_name ='merged.pdf',
+                    file_name='merged.pdf',
                     mime='application/octet-stream'
                 )
 
+        # 特定のページを削除
+        if selector == 'ページ削除':
+            st.write('---')
+            try:
+                page_numbers = st.text_input(
+                    label='削除するページ番号をカンマ区切りで入力してください（例: 2, 5, 7）',
+                )
+
+                pages = [n for n in range(1, count_pages + 1)]
+                st.write(f'元ファイルページ番号: {pages}')
+
+                if page_numbers:
+                    pages_to_delete = sorted([int(page.strip()) for page in page_numbers.split(",")])
+
+                    # 新しいPDFファイルを作成して削除したページをコピー
+                    pdf_reader = PdfReader(pdf_file)
+                    pdf_writer = PdfWriter()
+
+                    st.write(f'削除ページ: {pages_to_delete}')
+                    for page_num in range(1, count_pages + 1):
+                        if page_num not in pages_to_delete:
+                            page = pdf_reader.pages[page_num - 1]
+                            pdf_writer.add_page(page)
+
+                    # 新しいPDFファイルを保存
+                    pdf_writer.write('./data/deleted.pdf')
+
+                    with open("./data/deleted.pdf", "rb") as output_file:
+                        PDFbyte = output_file.read()
+                        pages_deleted_file = len(PdfReader(output_file).pages)
+                        st.success("ページの削除が完了し、新しいPDFが保存されました。ダウンロードしてください")
+                        st.write(f'- 処理後ページ数: {pages_deleted_file}ページ')
+
+                    st.download_button(
+                        label='ダウンロード',
+                        data=PDFbyte,
+                        file_name='deleted.pdf',
+                        mime='application/octet-stream'
+                    )
+
+            except Exception as e:
+                st.error(f"エラーが発生しました: {str(e)}")
+
         # ページの並び替え
         if selector == '並び替え':
-            input_order = st.text_input(
-                '並び順をカンマ区切りで入力してください (e.g, 1,3,2)',
-            )
-            order = int(input_order.split(',').strip())
-
-            with open(pdf_file, 'rb') as file:
-                reader = PdfReader(file)
-                writer = PdfWriter()
-
-                for page_num in order:
-                    page = reader.getPage(page_num)
-                    writer.addPage(page)
-
-                with open('data/output.pdf', 'wb') as output:
-                    writer.write(output)
-
-
-        # 特定のページを削除
-        if selector == '削除':
-            pass
-
-        # PDF分割処理
-        if selector == '分割':
             st.write('---')
-            split_page = st.number_input(
-                '分割するページ番号を選択してください',
-                min_value=1,
-                max_value=count_pages
-            )
-            front_page = f':{split_page}'
-            backend_page = f'{split_page +1}:'
+            try:
+                page_order = st.text_input(
+                    label='ページの並びをカンマ区切りで指定してください（例: 2, 5, 7）',
+                )
+                st.write(f'元のページ順: {[n for n in range(1, count_pages + 1)]}')
+                if page_order:
+                    page_order = [int(page.strip()) for page in page_order.split(",")]
 
-            # merger = PdfMerger(pdf_file)
-            # merger.append(pdf_file, pages=pypdf.PageRange(front_page))
-            pass
+                    if set(page_order) == set(range(1, count_pages + 1)):
+
+                        st.write(f' → 指定の並び順: {page_order}')
+
+                        pdf_reader = PdfReader(pdf_file)
+                        pdf_writer = PdfWriter()
+
+                        for page_num in page_order:
+                            page = pdf_reader.pages[page_num - 1]
+                            pdf_writer.add_page(page)
+
+                        # 新しいPDFファイルを保存
+                        pdf_writer.write('./data/reordered.pdf')
+
+                        with open("./data/reordered.pdf", "rb") as output_file:
+                            PDFbyte = output_file.read()
+                            st.success("ページの並び替えが完了し、新しいPDFが保存されました。ダウンロードしてください")
+
+                        st.download_button(
+                            label='ダウンロード',
+                            data=PDFbyte,
+                            file_name='reordered.pdf',
+                            mime='application/octet-stream'
+                        )
+
+                    else:
+                        st.warning('ページの指定が誤っています。確認してください。')
+
+            except Exception as e:
+                st.error(f"エラーが発生しました: {str(e)}")
 
 
 if __name__ == "__main__":
