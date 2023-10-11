@@ -1,24 +1,66 @@
+import os
 import streamlit as st
 
 from pypdf import PdfReader, PdfWriter, PdfMerger
+
+
+# PDFファイルのページ数を取得
+def get_page_count(pdf_file):
+    pdf_reader = PdfReader(pdf_file)
+    return len(pdf_reader.pages)
+
+
+# ファイルサイズの取得（MB）
+def format_size(size_bytes):
+    size_mb = size_bytes / (1024 * 1024)
+    return f'{round(size_mb, 1)}MB'
+
+
+# PDfファイルの結合
+def merge_pdf(base_pdf):
+    file_name_str = st.text_input('出力するPDFファイル名を入力してください（拡張子.pdfは不要）', placeholder='Please enter file name.')
+    output_file_name = f'{file_name_str}.pdf'
+
+    add_pdfs = st.file_uploader(
+        "結合するPDFファイルをアップロードしてください",
+        type='pdf',
+        accept_multiple_files=True
+    )
+
+    if add_pdfs:
+        merger = PdfMerger()
+        merger.append(base_pdf)
+
+        for add_pdf in add_pdfs:
+            merger.append(add_pdf)
+
+        merger.write(output_file_name)
+
+        st.success("PDFの結合が完了し、新しいPDFが保存されました。ダウンロードしてください")
+        download_file(output_file_name)
+
+
+def download_file(file_path):
+    with open(file_path, 'rb') as f:
+        file_bytes = f.read()
+
+    st.download_button(
+        label='Download',
+        data=file_bytes,
+        file_name=file_path,
+        mime='application/pdf'
+    )
 
 
 # Streamlitアプリ
 def main():
     st.title('PDF Manipulator')
 
-    pdf_file = st.file_uploader("PDFファイルをアップロードしてください", type="pdf")
+    base_pdf = st.file_uploader("PDFファイルをアップロードしてください", type="pdf")
 
-    if pdf_file:
+    if base_pdf:
 
-        reader = PdfReader(pdf_file)
-        writer = PdfWriter(pdf_file)
-        count_pages = len(reader.pages)
-
-        # st.sidebar.subheader('ベースとなるPDFファイル:')
-        # st.sidebar.write(f'- Title: {pdf_file.name}')
-        # st.sidebar.write(f'- Pages: {count_pages}ページ')
-        # st.sidebar.write(f'- Size: {round(pdf_file.size / (1024 * 1024), 1)}MB')
+        count_pages = get_page_count(base_pdf)
 
         st.write('---')
         selector = st.radio(
@@ -32,25 +74,8 @@ def main():
         if selector == '結合':
             st.write('---')
 
-            add_pdfs = st.file_uploader("結合するPDFファイルをアップロードしてください", type='pdf', accept_multiple_files=True)
+            merge_pdf(base_pdf)
 
-            # 追加ファイルのアップロードをトリガーに
-            if add_pdfs:
-                merger = PdfMerger()
-                merger.append(pdf_file)
-                for n in range(len(add_pdfs)):
-                    merger.append(add_pdfs[n])
-
-                merger.write('./data/merged.pdf')
-                with open('./data/merged.pdf', 'rb') as pdf_file:
-                    PDFbyte = pdf_file.read()
-
-                st.download_button(
-                    label='ダウンロード',
-                    data=PDFbyte,
-                    file_name='merged.pdf',
-                    mime='application/octet-stream'
-                )
 
         # 特定のページを削除
         if selector == 'ページ削除':
