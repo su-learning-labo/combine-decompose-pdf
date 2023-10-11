@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 
 from pypdf import PdfReader, PdfWriter, PdfMerger
@@ -40,6 +39,42 @@ def merge_pdf(base_pdf):
         download_file(output_file_name)
 
 
+# PDfファイルの削除
+def delete_pages(pdf_file, count_pages):
+
+    file_name_str = st.text_input('出力するPDFファイル名を入力してください（拡張子.pdfは不要）',
+                                  placeholder='Please enter file name.')
+    output_file_name = f'{file_name_str}.pdf'
+
+    try:
+        page_numbers = st.text_input(
+            label='削除するページ番号をカンマ区切りで入力してください（例: 2, 5, 7）',
+        )
+
+        st.write(f'元ファイルページ番号: {count_pages}')
+
+        if page_numbers:
+            pages = [n for n in range(1, count_pages + 1)]
+            pages_to_delete = sorted([int(page.strip()) for page in page_numbers.split(",")])
+
+            pdf_reader = PdfReader(pdf_file)
+            pdf_writer = PdfWriter()
+
+            st.write(f'削除ページ: {pages_to_delete}')
+            for page_num in range(1, count_pages + 1):
+                if page_num not in pages_to_delete:
+                    page = pdf_reader.pages[page_num - 1]
+                    pdf_writer.add_page(page)
+
+            pdf_writer.write(output_file_name)
+
+            st.success("PDFの結合が完了し、新しいPDFが保存されました。ダウンロードしてください")
+            download_file(output_file_name)
+
+    except Exception as e:
+        st.error(f"エラーが発生しました: {str(e)}")
+
+
 def download_file(file_path):
     with open(file_path, 'rb') as f:
         file_bytes = f.read()
@@ -60,6 +95,7 @@ def main():
 
     if base_pdf:
 
+        # アップロードファイルのページ数取得
         count_pages = get_page_count(base_pdf)
 
         st.write('---')
@@ -70,57 +106,19 @@ def main():
             index=None
         )
 
-        # PDF結合
+        # 結合処理
         if selector == '結合':
             st.write('---')
 
             merge_pdf(base_pdf)
 
-
-        # 特定のページを削除
+        # ページ削除
         if selector == 'ページ削除':
             st.write('---')
-            try:
-                page_numbers = st.text_input(
-                    label='削除するページ番号をカンマ区切りで入力してください（例: 2, 5, 7）',
-                )
 
-                pages = [n for n in range(1, count_pages + 1)]
-                st.write(f'元ファイルページ番号: {pages}')
+            delete_pages(base_pdf, count_pages)
 
-                if page_numbers:
-                    pages_to_delete = sorted([int(page.strip()) for page in page_numbers.split(",")])
-
-                    # 新しいPDFファイルを作成して削除したページをコピー
-                    pdf_reader = PdfReader(pdf_file)
-                    pdf_writer = PdfWriter()
-
-                    st.write(f'削除ページ: {pages_to_delete}')
-                    for page_num in range(1, count_pages + 1):
-                        if page_num not in pages_to_delete:
-                            page = pdf_reader.pages[page_num - 1]
-                            pdf_writer.add_page(page)
-
-                    # 新しいPDFファイルを保存
-                    pdf_writer.write('./data/deleted.pdf')
-
-                    with open("./data/deleted.pdf", "rb") as output_file:
-                        PDFbyte = output_file.read()
-                        pages_deleted_file = len(PdfReader(output_file).pages)
-                        st.success("ページの削除が完了し、新しいPDFが保存されました。ダウンロードしてください")
-                        st.write(f'- 処理後ページ数: {pages_deleted_file}ページ')
-
-                    st.download_button(
-                        label='ダウンロード',
-                        data=PDFbyte,
-                        file_name='deleted.pdf',
-                        mime='application/octet-stream'
-                    )
-
-            except Exception as e:
-                st.error(f"エラーが発生しました: {str(e)}")
-
-        # ページの並び替え
+        # 並び替え
         if selector == '並び替え':
             st.write('---')
             try:
