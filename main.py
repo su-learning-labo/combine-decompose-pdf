@@ -42,19 +42,18 @@ def merge_pdf(base_pdf):
 # PDfファイルの削除
 def delete_pages(pdf_file, count_pages):
 
-    file_name_str = st.text_input('出力するPDFファイル名を入力してください（拡張子.pdfは不要）',
-                                  placeholder='Please enter file name.')
+    file_name_str = st.text_input('出力するPDFファイル名を入力してください（拡張子.pdfは不要）', placeholder='Please enter file name.')
     output_file_name = f'{file_name_str}.pdf'
 
     try:
         page_numbers = st.text_input(
-            label='削除するページ番号をカンマ区切りで入力してください（例: 2, 5, 7）',
+            label='削除するページ番号をカンマ区切りで入力してください（例: 2, 5, 7）'
         )
 
-        st.write(f'元ファイルページ番号: {count_pages}')
+        st.write(f'アップロードファイルのページ数: {count_pages}')
 
         if page_numbers:
-            pages = [n for n in range(1, count_pages + 1)]
+            # pages = [n for n in range(1, count_pages + 1)]
             pages_to_delete = sorted([int(page.strip()) for page in page_numbers.split(",")])
 
             pdf_reader = PdfReader(pdf_file)
@@ -70,6 +69,46 @@ def delete_pages(pdf_file, count_pages):
 
             st.success("PDFの結合が完了し、新しいPDFが保存されました。ダウンロードしてください")
             download_file(output_file_name)
+
+    except Exception as e:
+        st.error(f"エラーが発生しました: {str(e)}")
+
+
+# ファイルの並び替え
+def reorder_pages(pdf_file, count_pages):
+
+    file_name_str = st.text_input('出力するPDFファイル名を入力してください（拡張子.pdfは不要）', placeholder='Please enter file name.')
+    output_file_name = f'{file_name_str}.pdf'
+
+    try:
+        page_order = st.text_input(
+            label='ページの並びをカンマ区切りで指定してください（例: 2, 5, 7）',
+        )
+
+        st.write(f'元のページ順: {[n for n in range(1, count_pages + 1)]}')
+        if page_order:
+            page_order = [int(page.strip()) for page in page_order.split(",")]
+
+            if set(page_order) == set(range(1, count_pages + 1)):
+
+                st.write(f' → 指定の並び順: {page_order}')
+
+                pdf_reader = PdfReader(pdf_file)
+                pdf_writer = PdfWriter()
+
+                for page_num in page_order:
+                    page = pdf_reader.pages[page_num - 1]
+                    pdf_writer.add_page(page)
+
+                # 新しいPDFファイルを保存
+                pdf_writer.write(output_file_name)
+
+                st.success("ページの並び替えが完了し、新しいPDFが保存されました。ダウンロードしてください")
+
+                download_file(output_file_name)
+
+            else:
+                st.warning('ページの指定が誤っています。確認してください。')
 
     except Exception as e:
         st.error(f"エラーが発生しました: {str(e)}")
@@ -109,56 +148,17 @@ def main():
         # 結合処理
         if selector == '結合':
             st.write('---')
-
             merge_pdf(base_pdf)
 
         # ページ削除
         if selector == 'ページ削除':
             st.write('---')
-
             delete_pages(base_pdf, count_pages)
 
         # 並び替え
         if selector == '並び替え':
             st.write('---')
-            try:
-                page_order = st.text_input(
-                    label='ページの並びをカンマ区切りで指定してください（例: 2, 5, 7）',
-                )
-                st.write(f'元のページ順: {[n for n in range(1, count_pages + 1)]}')
-                if page_order:
-                    page_order = [int(page.strip()) for page in page_order.split(",")]
-
-                    if set(page_order) == set(range(1, count_pages + 1)):
-
-                        st.write(f' → 指定の並び順: {page_order}')
-
-                        pdf_reader = PdfReader(pdf_file)
-                        pdf_writer = PdfWriter()
-
-                        for page_num in page_order:
-                            page = pdf_reader.pages[page_num - 1]
-                            pdf_writer.add_page(page)
-
-                        # 新しいPDFファイルを保存
-                        pdf_writer.write('./data/reordered.pdf')
-
-                        with open("./data/reordered.pdf", "rb") as output_file:
-                            PDFbyte = output_file.read()
-                            st.success("ページの並び替えが完了し、新しいPDFが保存されました。ダウンロードしてください")
-
-                        st.download_button(
-                            label='ダウンロード',
-                            data=PDFbyte,
-                            file_name='reordered.pdf',
-                            mime='application/octet-stream'
-                        )
-
-                    else:
-                        st.warning('ページの指定が誤っています。確認してください。')
-
-            except Exception as e:
-                st.error(f"エラーが発生しました: {str(e)}")
+            reorder_pages(base_pdf, count_pages)
 
 
 if __name__ == "__main__":
