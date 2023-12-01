@@ -86,8 +86,6 @@ def main():
 
     base_pdf = st.file_uploader("PDFファイルをアップロードしてください", type="pdf")
 
-    default_file_name = ''
-
     if base_pdf:
         # アップロードファイルのページ数取得
         count_pages = get_page_count(base_pdf)
