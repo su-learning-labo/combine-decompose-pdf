@@ -1,3 +1,6 @@
+import os
+import tempfile
+
 import streamlit as st
 from pypdf import PdfReader, PdfWriter, PdfMerger
 
@@ -47,27 +50,49 @@ def reorder_pages(pdf_file, page_order, output_file_name):
     pdf_writer.write(output_file_name)
 
 
+# 一時フォルダのパス取得
+TEMP_FOLDER = tempfile.gettempdir()
+
 def download_file(file_path):
-    with open(file_path, 'rb') as f:
-        file_bytes = f.read()
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as f:
+            file_bytes = f.read()
 
-    st.download_button(
-        label='Download',
-        data=file_bytes,
-        file_name=file_path,
-        mime='application/pdf'
-    )
+        st.download_button(
+            label='Download',
+            data=file_bytes,
+            file_name=os.path.basename(file_path),
+            mime='application/pdf'
+        )
 
+        os.remove(file_path)
+    else:
+        with open(file_path, 'rb') as f:
+            file_bytes = f.read()
+
+        st.download_button(
+            label='Download',
+            data=file_bytes,
+            file_name=os.path.basename(file_path),
+            mime='application/pdf'
+        )
+
+        os.remove(file_path)
 
 # Streamlitアプリ
 def main():
+
     st.title('PDF Manipulator')
 
     base_pdf = st.file_uploader("PDFファイルをアップロードしてください", type="pdf")
 
+    default_file_name = ''
+
     if base_pdf:
         # アップロードファイルのページ数取得
         count_pages = get_page_count(base_pdf)
+
+        default_file_name = base_pdf.name.split('.')[0]
 
         st.write('---')
         selector = st.radio(
@@ -79,7 +104,7 @@ def main():
 
         if selector == '結合':
             st.write('---')
-            file_name_str = st.text_input('出力するPDFファイル名を入力してください（拡張子.pdfは不要）', placeholder='Please enter file name.')
+            file_name_str = st.text_input('出力するPDFファイル名を入力してください（拡張子.pdfは不要）', value=default_file_name, placeholder='Please enter file name.')
             output_file_name = f'{file_name_str}.pdf'
             add_pdfs = st.file_uploader(
                 "結合するPDFファイルをアップロードしてください",
@@ -89,14 +114,16 @@ def main():
 
             if st.button("結合"):
                 if add_pdfs:
-                    merge_pdf(base_pdf, add_pdfs, output_file_name)
+                    temp_output_file = os.path.join(TEMP_FOLDER, output_file_name)
+                    merge_pdf(base_pdf, add_pdfs, temp_output_file)
                     st.success("PDFの結合が完了し、新しいPDFが保存されました。ダウンロードしてください")
-                    download_file(output_file_name)
+                    download_file(temp_output_file)
 
         elif selector == 'ページ削除':
             st.write('---')
             page_number_list = [n for n in range(1, count_pages + 1)]
             file_name_str = st.text_input('出力するPDFファイル名を入力してください（拡張子.pdfは不要）',
+                                          value=default_file_name,
                                           placeholder='Please enter file name.')
             output_file_name = f'{file_name_str}.pdf'
             page_numbers = st.text_input(
@@ -106,9 +133,10 @@ def main():
 
             if st.button("ページ削除"):
                 if page_numbers:
-                    delete_pages(base_pdf, page_numbers, output_file_name)
+                    temp_output_file = os.path.join(TEMP_FOLDER, output_file_name)
+                    delete_pages(base_pdf, page_numbers, temp_output_file)
                     st.success("PDFのページ削除が完了し、新しいPDFが保存されました。ダウンロードしてください")
-                    download_file(output_file_name)
+                    download_file(temp_output_file)
 
         # 並び替え
         elif selector == '並び替え':
@@ -118,14 +146,16 @@ def main():
             page_number_list = [n for n in range(1, count_pages + 1)]
             page_order = st.text_input(
                 label='ページの並び順をカンマ区切りで指定してください（例: 2, 5, 7）',
+                value=default_file_name,
                 placeholder=f'ページ番号: {page_number_list}'
             )
 
             if st.button("並び替え"):
                 if page_order:
-                    reorder_pages(base_pdf, page_order, output_file_name)
+                    temp_output_file = os.path.join(TEMP_FOLDER, output_file_name)
+                    reorder_pages(base_pdf, page_order, temp_output_file)
                     st.success("PDFのページ並び替えが完了し、新しいPDFが保存されました。ダウンロードしてください")
-                    download_file(output_file_name)
+                    download_file(temp_output_file)
 
 
 if __name__ == "__main__":
